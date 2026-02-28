@@ -22,6 +22,7 @@ jobs:
       - name: Build project
         shell: bash
         run: |
+          git config --global --add safe.directory /__w/smart_poultry_esp32_v2/smart_poultry_esp32_v2
           . $IDF_PATH/export.sh
           idf.py build
 
