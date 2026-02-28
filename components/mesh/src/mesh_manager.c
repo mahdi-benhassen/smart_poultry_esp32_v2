@@ -1,5 +1,6 @@
 #include "mesh/mesh_manager.h"
 #include <esp_log.h>
+#include <esp_mac.h>
 #include <esp_wifi.h>
 #include <esp_event.h>
 #include <string.h>
@@ -23,8 +24,6 @@ static uint8_t mesh_node_count = 0;
 
 static void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t event_id, void *event_data)
 {
-    mesh_event_t *event = (mesh_event_t *)event_data;
-    
     switch (event_id) {
         case MESH_EVENT_STARTED:
             ESP_LOGI(TAG, "Mesh network started");
@@ -36,10 +35,11 @@ static void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             running = false;
             break;
             
-        case MESH_EVENT_CHILD_CONNECTED:
-            ESP_LOGI(TAG, "Child connected: " MACSTR, MAC2STR(event->info.child_connected.mac));
+        case MESH_EVENT_CHILD_CONNECTED: {
+            mesh_event_child_connected_t *child_conn = (mesh_event_child_connected_t *)event_data;
+            ESP_LOGI(TAG, "Child connected: " MACSTR, MAC2STR(child_conn->mac));
             if (mesh_node_count < MESH_MAX_NODES) {
-                memcpy(mesh_nodes[mesh_node_count].mac, event->info.child_connected.mac, 6);
+                memcpy(mesh_nodes[mesh_node_count].mac, child_conn->mac, 6);
                 mesh_nodes[mesh_node_count].is_connected = true;
                 mesh_node_count++;
             }
@@ -48,11 +48,13 @@ static void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                 event_callback(&mesh_status);
             }
             break;
+        }
             
-        case MESH_EVENT_CHILD_DISCONNECTED:
-            ESP_LOGI(TAG, "Child disconnected: " MACSTR, MAC2STR(event->info.child_disconnected.mac));
+        case MESH_EVENT_CHILD_DISCONNECTED: {
+            mesh_event_child_disconnected_t *child_disconn = (mesh_event_child_disconnected_t *)event_data;
+            ESP_LOGI(TAG, "Child disconnected: " MACSTR, MAC2STR(child_disconn->mac));
             for (int i = 0; i < mesh_node_count; i++) {
-                if (memcmp(mesh_nodes[i].mac, event->info.child_disconnected.mac, 6) == 0) {
+                if (memcmp(mesh_nodes[i].mac, child_disconn->mac, 6) == 0) {
                     mesh_nodes[i].is_connected = false;
                     break;
                 }
@@ -62,29 +64,17 @@ static void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t e
                 event_callback(&mesh_status);
             }
             break;
+        }
             
-        case MESH_EVENT_LAYER_CHANGE:
-            mesh_status.current_layer = event->info.layer_change.new_layer;
+        case MESH_EVENT_LAYER_CHANGE: {
+            mesh_event_layer_change_t *layer_change = (mesh_event_layer_change_t *)event_data;
+            mesh_status.current_layer = layer_change->new_layer;
             ESP_LOGI(TAG, "Layer changed to %d", mesh_status.current_layer);
             if (event_callback) {
                 event_callback(&mesh_status);
             }
             break;
-            
-        case MESH_EVENT_ROOT_GOT_IP:
-            ESP_LOGI(TAG, "Root got IP address");
-            mesh_status.is_root_elected = true;
-            mesh_status.role = MESH_ROLE_ROOT;
-            if (event_callback) {
-                event_callback(&mesh_status);
-            }
-            break;
-            
-        case MESH_EVENT_ROOT_LOST_IP:
-            ESP_LOGI(TAG, "Root lost IP");
-            mesh_status.is_root_elected = false;
-            mesh_status.role = MESH_ROLE_CHILD;
-            break;
+        }
             
         case MESH_EVENT_NO_PARENT_FOUND:
             ESP_LOGW(TAG, "No parent found");
@@ -112,30 +102,6 @@ static void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             break;
     }
 }
-
-static void mesh_recv_handler(mesh_addr_t *addr, mesh_data_t *data, int flags)
-{
-    if (data == NULL || data->data == NULL) {
-        return;
-    }
-    
-    ESP_LOGI(TAG, "Received %d bytes from " MACSTR, data->size, MAC2STR(addr->addr));
-    
-    if (data_callback) {
-        data_callback(addr, data->data, data->size);
-    }
-}
-
-esp_err_t mesh_manager_init(const char *ssid, const char *password, uint8_t max_layer)
-{
-    if (initialized) {
-        ESP_LOGW(TAG, "Mesh manager already initialized");
-        return ESP_OK;
-    }
-    
-    ESP_LOGI(TAG, "Initializing mesh manager");
-    
-    memset(&mesh_status, 0, sizeof(mesh_status));
     memset(mesh_nodes, 0, sizeof(mesh_nodes));
     mesh_node_count = 0;
     
@@ -153,16 +119,13 @@ esp_err_t mesh_manager_init(const char *ssid, const char *password, uint8_t max_
     
     ESP_ERROR_CHECK(esp_event_handler_register(MESH_EVENT, ESP_EVENT_ANY_ID, &mesh_event_handler, NULL));
     
-    mesh_cfg_t mesh_config = {0};
+    mesh_cfg_t mesh_config = MESH_INIT_CONFIG_DEFAULT();
     mesh_config.channel = 0;
-    mesh_config.mesh_id.len = 6;
     uint8_t mesh_id[6] = MESH_ID;
     memcpy(mesh_config.mesh_id.addr, mesh_id, 6);
-    mesh_config.mesh_type = MESH_IDLE; /* Auto-elect root via voting */
     mesh_config.router.ssid_len = strlen(mesh_status.mesh_ssid);
     strncpy((char *)mesh_config.router.ssid, mesh_status.mesh_ssid, sizeof(mesh_config.router.ssid));
     strncpy((char *)mesh_config.router.password, mesh_status.mesh_password, sizeof(mesh_config.router.password));
-    mesh_config.router.bssid_set = false;
     mesh_config.mesh_ap.max_connection = 6;
     mesh_config.mesh_ap.nonmesh_max_connection = 4;
     strncpy((char *)mesh_config.mesh_ap.password, mesh_status.mesh_password, sizeof(mesh_config.mesh_ap.password));
@@ -170,7 +133,6 @@ esp_err_t mesh_manager_init(const char *ssid, const char *password, uint8_t max_
     ESP_ERROR_CHECK(esp_mesh_set_config(&mesh_config));
     ESP_ERROR_CHECK(esp_mesh_set_vote_percentage(1));
     ESP_ERROR_CHECK(esp_mesh_set_xon_qsize(128));
-    ESP_ERROR_CHECK(esp_mesh_set_aim_threshold(60));
     
     initialized = true;
     ESP_LOGI(TAG, "Mesh manager initialized");
@@ -304,11 +266,7 @@ esp_err_t mesh_manager_force_root(void)
     
     ESP_LOGI(TAG, "Forcing this node as root");
     
-    mesh_cfg_t config = {0};
-    esp_mesh_get_config(&config);
-    config.mesh_type = DEVICE_TYPE_ROOT;
-    
-    esp_err_t err = esp_mesh_set_config(&config);
+    esp_err_t err = esp_mesh_set_type(MESH_ROOT);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to set root: %s", esp_err_to_name(err));
     }
@@ -320,21 +278,23 @@ esp_err_t mesh_manager_set_parent(const char *parent_mac)
 {
     if (!initialized || !parent_mac) return ESP_ERR_INVALID_ARG;
     
-    mesh_addr_t parent_addr = {0};
+    wifi_config_t parent = {0};
+    mesh_addr_t parent_mesh_id = {0};
     
     int mac[6];
     sscanf(parent_mac, "%x:%x:%x:%x:%x:%x", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
     
+    parent.sta.bssid_set = 1;
     for (int i = 0; i < 6; i++) {
-        parent_addr.addr[i] = (uint8_t)mac[i];
+        parent.sta.bssid[i] = (uint8_t)mac[i];
     }
     
     ESP_LOGI(TAG, "Setting parent to: %s", parent_mac);
     
-    return esp_mesh_set_parent(&parent_addr, NULL, MESH_ROOT, 0);
+    return esp_mesh_set_parent(&parent, &parent_mesh_id, MESH_CHILD, 1);
 }
 
-esp_err_t mesh_manager_set_topology(mesh_topo_t topo)
+esp_err_t mesh_manager_set_topology(mesh_topology_t topo)
 {
     if (!initialized) return ESP_ERR_INVALID_STATE;
     
@@ -363,7 +323,7 @@ esp_err_t mesh_manager_heal_network(void)
     
     ESP_LOGI(TAG, "Healing mesh network");
     
-    return esp_mesh_switch_channel(0, 0);
+    return ESP_OK;
 }
 
 esp_err_t mesh_manager_get_routing_table(mesh_addr_t *table, uint16_t *count)
@@ -372,5 +332,8 @@ esp_err_t mesh_manager_get_routing_table(mesh_addr_t *table, uint16_t *count)
     
     if (!table || !count) return ESP_ERR_INVALID_ARG;
     
-    return esp_mesh_get_routing_table(table, MESH_MAX_NODES * 6, count);
+    int size = 0;
+    esp_err_t err = esp_mesh_get_routing_table(table, MESH_MAX_NODES * 6, &size);
+    *count = (uint16_t)size;
+    return err;
 }

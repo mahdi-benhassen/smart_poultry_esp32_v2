@@ -13,10 +13,6 @@ typedef enum {
     MESH_ROLE_LEAF
 } mesh_role_t;
 
-typedef enum {
-    MESH_TOPO_TREE,
-    MESH_TOPO_CHAIN
-} mesh_topo_t;
 
 typedef struct {
     uint8_t mac[6];
@@ -28,7 +24,7 @@ typedef struct {
 
 typedef struct {
     mesh_role_t role;
-    mesh_topo_t topology;
+    mesh_topology_t topology;
     uint8_t max_layer;
     uint8_t current_layer;
     uint8_t connected_nodes;
@@ -51,7 +47,7 @@ esp_err_t mesh_manager_get_status(mesh_status_t *status);
 esp_err_t mesh_manager_get_nodes(mesh_node_info_t *nodes, uint8_t *count);
 esp_err_t mesh_manager_force_root(void);
 esp_err_t mesh_manager_set_parent(const char *parent_mac);
-esp_err_t mesh_manager_set_topology(mesh_topo_t topo);
+esp_err_t mesh_manager_set_topology(mesh_topology_t topo);
 esp_err_t mesh_manager_set_data_callback(mesh_data_callback_t callback);
 esp_err_t mesh_manager_set_event_callback(mesh_event_callback_t callback);
 esp_err_t mesh_manager_heal_network(void);
