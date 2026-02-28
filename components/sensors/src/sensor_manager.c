@@ -6,7 +6,6 @@
 #include <freertos/semphr.h>
 #include <driver/gpio.h>
 #include <driver/adc.h>
-#include <esp_adc_cal.h>
 #include "sensors/sensor_manager.h"
 #include "sensors/dht22.h"
 #include "sensors/mq_sensor.h"

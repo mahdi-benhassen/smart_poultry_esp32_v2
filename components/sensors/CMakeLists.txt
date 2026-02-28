@@ -9,5 +9,5 @@ idf_component_register(
         "src/weight_sensor.c"
         "src/water_level_sensor.c"
     INCLUDE_DIRS "include"
-    REQUIRES driver esp_adc_cal esp_log esp_system
+    REQUIRES driver esp_log esp_system
 )
