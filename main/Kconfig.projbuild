@@ -1,0 +1,115 @@
+menu "Smart Poultry System Configuration"
+
+    config SMART_POULTRY_DEVICE_NAME
+        string "Device name"
+        default "SmartPoultry_001"
+        help
+            Name of the device, used for MQTT identification.
+
+    menu "WiFi Configuration"
+        config SMART_POULTRY_WIFI_SSID
+            string "WiFi SSID"
+            default ""
+            help
+                SSID of the WiFi network to connect to.
+
+        config SMART_POULTRY_WIFI_PASSWORD
+            string "WiFi Password"
+            default ""
+            help
+                Password of the WiFi network.
+    endmenu
+
+    menu "MQTT Configuration"
+        config SMART_POULTRY_MQTT_BROKER
+            string "MQTT Broker URI"
+            default "mqtt://localhost"
+            help
+                URI of the MQTT broker (e.g. mqtt://192.168.1.10).
+
+        config SMART_POULTRY_MQTT_PORT
+            int "MQTT Port"
+            default 1883
+            help
+                MQTT broker port number.
+
+        config SMART_POULTRY_MQTT_TOPIC
+            string "MQTT Base Topic"
+            default "poultry/farm"
+            help
+                Base MQTT topic for publishing sensor data.
+    endmenu
+
+    menu "Sensor Configuration"
+        config MAX_SENSORS
+            int "Maximum number of sensors"
+            default 32
+            range 1 128
+            help
+                Maximum number of sensors that can be registered.
+
+        config MONITORING_INTERVAL_MS
+            int "Monitoring interval (ms)"
+            default 5000
+            range 1000 60000
+            help
+                Interval in milliseconds between monitoring updates.
+    endmenu
+
+    menu "Control Configuration"
+        config CONTROL_LOOP_INTERVAL_MS
+            int "Control loop interval (ms)"
+            default 2000
+            range 500 30000
+            help
+                Interval in milliseconds for the control loop.
+    endmenu
+
+    menu "Actuator Configuration"
+        config MAX_ACTUATORS
+            int "Maximum number of actuators"
+            default 32
+            range 1 64
+            help
+                Maximum number of actuators that can be registered.
+    endmenu
+
+    menu "Mesh Configuration"
+        config SMART_POULTRY_MESH_ENABLED
+            bool "Enable ESP-MESH networking"
+            default n
+            help
+                Enable ESP-MESH networking mode.
+
+        config SMART_POULTRY_MESH_SSID
+            string "Mesh Network SSID"
+            default "PoultryFarm"
+            depends on SMART_POULTRY_MESH_ENABLED
+            help
+                SSID for the mesh network.
+
+        config SMART_POULTRY_MESH_PASSWORD
+            string "Mesh Network Password"
+            default "poultry2024"
+            depends on SMART_POULTRY_MESH_ENABLED
+            help
+                Password for the mesh network.
+
+        config SMART_POULTRY_MESH_MAX_LAYER
+            int "Maximum mesh layers"
+            default 4
+            range 1 10
+            depends on SMART_POULTRY_MESH_ENABLED
+            help
+                Maximum number of layers in the mesh network.
+
+        config SMART_POULTRY_MESH_MAX_NODES
+            int "Maximum mesh nodes"
+            default 50
+            range 2 255
+            depends on SMART_POULTRY_MESH_ENABLED
+            help
+                Maximum number of nodes in the mesh network.
+    endmenu
+
+endmenu
