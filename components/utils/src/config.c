@@ -47,19 +47,19 @@ mesh_config_t mesh_config = {
     .mesh_node_id = 1
 };
 
-static nvs_handle_t nvs_handle;
+static nvs_handle_t s_nvs_handle;
 
 static esp_err_t save_float(const char *key, float value)
 {
     uint32_t val_as_u32;
     memcpy(&val_as_u32, &value, sizeof(float));
-    return nvs_set_u32(nvs_handle, key, val_as_u32);
+    return nvs_set_u32(s_nvs_handle, key, val_as_u32);
 }
 
 static esp_err_t get_float(const char *key, float *value)
 {
     uint32_t val_as_u32;
-    esp_err_t err = nvs_get_u32(nvs_handle, key, &val_as_u32);
+    esp_err_t err = nvs_get_u32(s_nvs_handle, key, &val_as_u32);
     if (err == ESP_OK) {
         memcpy(value, &val_as_u32, sizeof(float));
     }
@@ -69,7 +69,7 @@ static esp_err_t get_float(const char *key, float *value)
 void config_init(void)
 {
     ESP_LOGI(TAG, "Initializing configuration");
-    esp_err_t err = nvs_open("config", NVS_READWRITE, &nvs_handle);
+    esp_err_t err = nvs_open("config", NVS_READWRITE, &s_nvs_handle);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to open NVS: %s", esp_err_to_name(err));
         return;
@@ -82,21 +82,21 @@ void config_load(void)
     ESP_LOGI(TAG, "Loading configuration from NVS");
     
     size_t len = sizeof(system_config.device_name);
-    nvs_get_str(nvs_handle, "device_name", system_config.device_name, &len);
+    nvs_get_str(s_nvs_handle, "device_name", system_config.device_name, &len);
     
     len = sizeof(system_config.wifi_ssid);
-    nvs_get_str(nvs_handle, "wifi_ssid", system_config.wifi_ssid, &len);
+    nvs_get_str(s_nvs_handle, "wifi_ssid", system_config.wifi_ssid, &len);
     
     len = sizeof(system_config.wifi_password);
-    nvs_get_str(nvs_handle, "wifi_password", system_config.wifi_password, &len);
+    nvs_get_str(s_nvs_handle, "wifi_password", system_config.wifi_password, &len);
     
     len = sizeof(system_config.mqtt_broker);
-    nvs_get_str(nvs_handle, "mqtt_broker", system_config.mqtt_broker, &len);
+    nvs_get_str(s_nvs_handle, "mqtt_broker", system_config.mqtt_broker, &len);
     
-    nvs_get_u16(nvs_handle, "mqtt_port", &system_config.mqtt_port);
+    nvs_get_u16(s_nvs_handle, "mqtt_port", &system_config.mqtt_port);
     
     len = sizeof(system_config.mqtt_topic);
-    nvs_get_str(nvs_handle, "mqtt_topic", system_config.mqtt_topic, &len);
+    nvs_get_str(s_nvs_handle, "mqtt_topic", system_config.mqtt_topic, &len);
     
     get_float("temp_min", &poultry_config.temp_min);
     get_float("temp_max", &poultry_config.temp_max);
@@ -109,26 +109,26 @@ void config_load(void)
     get_float("co_max", &poultry_config.co_max);
     
     uint8_t auto_ctrl = 1;
-    nvs_get_u8(nvs_handle, "auto_control", &auto_ctrl);
+    nvs_get_u8(s_nvs_handle, "auto_control", &auto_ctrl);
     poultry_config.auto_control_enabled = (auto_ctrl == 1);
     
     uint8_t notif = 1;
-    nvs_get_u8(nvs_handle, "notifications", &notif);
+    nvs_get_u8(s_nvs_handle, "notifications", &notif);
     poultry_config.notifications_enabled = (notif == 1);
     
     uint8_t mesh_en = 0;
-    nvs_get_u8(nvs_handle, "mesh_enabled", &mesh_en);
+    nvs_get_u8(s_nvs_handle, "mesh_enabled", &mesh_en);
     mesh_config.mesh_enabled = (mesh_en == 1);
     
     len = sizeof(mesh_config.mesh_ssid);
-    nvs_get_str(nvs_handle, "mesh_ssid", mesh_config.mesh_ssid, &len);
+    nvs_get_str(s_nvs_handle, "mesh_ssid", mesh_config.mesh_ssid, &len);
     
     len = sizeof(mesh_config.mesh_password);
-    nvs_get_str(nvs_handle, "mesh_password", mesh_config.mesh_password, &len);
+    nvs_get_str(s_nvs_handle, "mesh_password", mesh_config.mesh_password, &len);
     
-    nvs_get_u8(nvs_handle, "mesh_max_layer", &mesh_config.mesh_max_layer);
+    nvs_get_u8(s_nvs_handle, "mesh_max_layer", &mesh_config.mesh_max_layer);
     uint8_t mesh_is_root_u8 = 0;
-    nvs_get_u8(nvs_handle, "mesh_is_root", &mesh_is_root_u8);
+    nvs_get_u8(s_nvs_handle, "mesh_is_root", &mesh_is_root_u8);
     mesh_config.mesh_is_root = (mesh_is_root_u8 == 1);
     
     ESP_LOGI(TAG, "Configuration loaded successfully");
@@ -138,12 +138,12 @@ void config_save(void)
 {
     ESP_LOGI(TAG, "Saving configuration to NVS");
     
-    nvs_set_str(nvs_handle, "device_name", system_config.device_name);
-    nvs_set_str(nvs_handle, "wifi_ssid", system_config.wifi_ssid);
-    nvs_set_str(nvs_handle, "wifi_password", system_config.wifi_password);
-    nvs_set_str(nvs_handle, "mqtt_broker", system_config.mqtt_broker);
-    nvs_set_u16(nvs_handle, "mqtt_port", system_config.mqtt_port);
-    nvs_set_str(nvs_handle, "mqtt_topic", system_config.mqtt_topic);
+    nvs_set_str(s_nvs_handle, "device_name", system_config.device_name);
+    nvs_set_str(s_nvs_handle, "wifi_ssid", system_config.wifi_ssid);
+    nvs_set_str(s_nvs_handle, "wifi_password", system_config.wifi_password);
+    nvs_set_str(s_nvs_handle, "mqtt_broker", system_config.mqtt_broker);
+    nvs_set_u16(s_nvs_handle, "mqtt_port", system_config.mqtt_port);
+    nvs_set_str(s_nvs_handle, "mqtt_topic", system_config.mqtt_topic);
     
     save_float("temp_min", poultry_config.temp_min);
     save_float("temp_max", poultry_config.temp_max);
@@ -154,24 +154,24 @@ void config_save(void)
     save_float("ammonia_max", poultry_config.ammonia_max);
     save_float("co2_max", poultry_config.co2_max);
     save_float("co_max", poultry_config.co_max);
-    nvs_set_u8(nvs_handle, "auto_control", poultry_config.auto_control_enabled ? 1 : 0);
-    nvs_set_u8(nvs_handle, "notifications", poultry_config.notifications_enabled ? 1 : 0);
+    nvs_set_u8(s_nvs_handle, "auto_control", poultry_config.auto_control_enabled ? 1 : 0);
+    nvs_set_u8(s_nvs_handle, "notifications", poultry_config.notifications_enabled ? 1 : 0);
     
-    nvs_set_u8(nvs_handle, "mesh_enabled", mesh_config.mesh_enabled ? 1 : 0);
-    nvs_set_str(nvs_handle, "mesh_ssid", mesh_config.mesh_ssid);
-    nvs_set_str(nvs_handle, "mesh_password", mesh_config.mesh_password);
-    nvs_set_u8(nvs_handle, "mesh_max_layer", mesh_config.mesh_max_layer);
-    nvs_set_u8(nvs_handle, "mesh_is_root", mesh_config.mesh_is_root ? 1 : 0);
+    nvs_set_u8(s_nvs_handle, "mesh_enabled", mesh_config.mesh_enabled ? 1 : 0);
+    nvs_set_str(s_nvs_handle, "mesh_ssid", mesh_config.mesh_ssid);
+    nvs_set_str(s_nvs_handle, "mesh_password", mesh_config.mesh_password);
+    nvs_set_u8(s_nvs_handle, "mesh_max_layer", mesh_config.mesh_max_layer);
+    nvs_set_u8(s_nvs_handle, "mesh_is_root", mesh_config.mesh_is_root ? 1 : 0);
     
-    nvs_commit(nvs_handle);
+    nvs_commit(s_nvs_handle);
     ESP_LOGI(TAG, "Configuration saved successfully");
 }
 
 void config_reset(void)
 {
     ESP_LOGI(TAG, "Resetting configuration to defaults");
-    nvs_erase_all(nvs_handle);
-    nvs_commit(nvs_handle);
+    nvs_erase_all(s_nvs_handle);
+    nvs_commit(s_nvs_handle);
     config_load();
 }
 
