@@ -102,6 +102,9 @@ static void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             break;
     }
 }
+
+esp_err_t mesh_manager_init(const char *ssid, const char *password, uint8_t max_layer)
+{
     memset(mesh_nodes, 0, sizeof(mesh_nodes));
     mesh_node_count = 0;
     
@@ -291,10 +294,10 @@ esp_err_t mesh_manager_set_parent(const char *parent_mac)
     
     ESP_LOGI(TAG, "Setting parent to: %s", parent_mac);
     
-    return esp_mesh_set_parent(&parent, &parent_mesh_id, MESH_CHILD, 1);
+    return esp_mesh_set_parent(&parent, &parent_mesh_id, MESH_NODE, 1);
 }
 
-esp_err_t mesh_manager_set_topology(mesh_topology_t topo)
+esp_err_t mesh_manager_set_topology(esp_mesh_topology_t topo)
 {
     if (!initialized) return ESP_ERR_INVALID_STATE;
     
