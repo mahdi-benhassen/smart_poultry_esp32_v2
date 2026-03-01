@@ -9,5 +9,5 @@ idf_component_register(
         "src/weight_sensor.c"
         "src/water_level_sensor.c"
     INCLUDE_DIRS "include"
-    REQUIRES driver log esp_system freertos
+    REQUIRES driver log esp_system freertos utils
 )
