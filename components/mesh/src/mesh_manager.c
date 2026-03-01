@@ -76,26 +76,24 @@ static void mesh_event_handler(void *arg, esp_event_base_t event_base, int32_t e
             break;
         }
             
-        case MESH_EVENT_NO_PARENT_FOUND:
-            ESP_LOGW(TAG, "No parent found");
-            break;
-            
-        case MESH_EVENT_VOTE_STARTED:
-            ESP_LOGI(TAG, "Vote started for new root");
-            break;
-            
-        case MESH_EVENT_VOTE_STOPPED:
-            ESP_LOGI(TAG, "Vote stopped");
-            break;
-            
-        case MESH_EVENT_ROOT_SWITCH_REQ:
-            ESP_LOGI(TAG, "Root switch request received");
-            break;
-            
-        case MESH_EVENT_ROOT_SWITCH_ACK:
-            ESP_LOGI(TAG, "Root switch acknowledged");
+        case IP_EVENT_STA_GOT_IP: {
+            ip_event_got_ip_t *got_ip = (ip_event_got_ip_t *)event_data;
+            ESP_LOGI(TAG, "Root got IP: " IPSTR, IP2STR(&got_ip->ip_info.ip));
             mesh_status.is_root_elected = true;
             mesh_status.role = MESH_ROLE_ROOT;
+            if (event_callback) {
+                event_callback(&mesh_status);
+            }
+            break;
+        }
+            
+        case IP_EVENT_STA_LOST_IP:
+            ESP_LOGI(TAG, "Root lost IP");
+            mesh_status.is_root_elected = false;
+            break;
+            
+        case MESH_EVENT_NO_PARENT_FOUND:
+            ESP_LOGW(TAG, "No parent found");
             break;
             
         default:
@@ -121,6 +119,8 @@ esp_err_t mesh_manager_init(const char *ssid, const char *password, uint8_t max_
     ESP_ERROR_CHECK(esp_wifi_init(&cfg));
     
     ESP_ERROR_CHECK(esp_event_handler_register(MESH_EVENT, ESP_EVENT_ANY_ID, &mesh_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &mesh_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP, &mesh_event_handler, NULL));
     
     mesh_cfg_t mesh_config = MESH_INIT_CONFIG_DEFAULT();
     mesh_config.channel = 0;
@@ -285,7 +285,7 @@ esp_err_t mesh_manager_set_parent(const char *parent_mac)
     mesh_addr_t parent_mesh_id = {0};
     
     int mac[6];
-    sscanf(parent_mac, "%x:%x:%x:%x:%x:%x", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
+    sscanf(parent_mac, "%02x:%02x:%02x:%02x:%02x:%02x", &mac[0], &mac[1], &mac[2], &mac[3], &mac[4], &mac[5]);
     
     parent.sta.bssid_set = 1;
     for (int i = 0; i < 6; i++) {

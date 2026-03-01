@@ -1,6 +1,6 @@
 #include "sensors/mq_sensor.h"
 #include "sensors/sensor_manager.h"
-#include <driver/adc.h>
+#include <esp_adc/adc_oneshot.h>
 #include <esp_log.h>
 #include <math.h>
 #include <string.h>
@@ -27,7 +27,8 @@ static float MQ7_R0 = 26.0f;
 
 static float mq_read_raw(adc_channel_t channel)
 {
-    int adc_value = adc1_get_raw(channel);
+    int adc_value = 0;
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, channel, &adc_value));
     return (float)adc_value;
 }
 

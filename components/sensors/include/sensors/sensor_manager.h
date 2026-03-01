@@ -4,6 +4,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <esp_err.h>
+#include <esp_adc/adc_oneshot.h>
+
+extern adc_oneshot_unit_handle_t adc1_handle;
 
 typedef enum {
     SENSOR_TYPE_TEMPERATURE,

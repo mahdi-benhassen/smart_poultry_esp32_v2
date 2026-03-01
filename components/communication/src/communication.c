@@ -1,6 +1,7 @@
 #include "communication/communication.h"
 #include <esp_log.h>
 #include <esp_wifi.h>
+#include <esp_mac.h>
 #include <esp_event.h>
 #include <esp_netif.h>
 #include <esp_mesh.h>
@@ -121,8 +122,8 @@ static void mesh_event_handler(void *arg, esp_event_base_t event_base,
             break;
         }
             
-        case MESH_EVENT_ROOT_GOT_IP: {
-            mesh_event_root_got_ip_t *got_ip = (mesh_event_root_got_ip_t *)event_data;
+        case IP_EVENT_STA_GOT_IP: {
+            ip_event_got_ip_t *got_ip = (ip_event_got_ip_t *)event_data;
             snprintf(comm_info.ip_address, sizeof(comm_info.ip_address),
                      IPSTR, IP2STR(&got_ip->ip_info.ip));
             ESP_LOGI(MESH_TAG, "Root got IP: %s", comm_info.ip_address);
@@ -130,7 +131,7 @@ static void mesh_event_handler(void *arg, esp_event_base_t event_base,
             break;
         }
             
-        case MESH_EVENT_ROOT_LOST_IP:
+        case IP_EVENT_STA_LOST_IP:
             ESP_LOGI(MESH_TAG, "Root lost IP");
             break;
             
@@ -447,13 +448,10 @@ esp_err_t communication_init_mesh(const char *mesh_ssid, const char *mesh_passwo
             sizeof(mesh_config.router.ssid));
     strncpy((char *)mesh_config.router.password, mesh_password ? mesh_password : MESH_PASSWORD,
             sizeof(mesh_config.router.password));
-    mesh_config.router.bssid_set = false;
-    mesh_config.mesh_id.len = 6;
     uint8_t mesh_id[6] = MESH_ID;
     memcpy(mesh_config.mesh_id.addr, mesh_id, 6);
     mesh_config.mesh_ap.max_connection = 6;
     mesh_config.mesh_ap.nonmesh_max_connection = 4;
-    mesh_config.mesh_ap.authmode = WIFI_AUTH_WPA2_PSK;
     strncpy((char *)mesh_config.mesh_ap.password, mesh_password ? mesh_password : MESH_PASSWORD,
             sizeof(mesh_config.mesh_ap.password));
     
@@ -463,6 +461,8 @@ esp_err_t communication_init_mesh(const char *mesh_ssid, const char *mesh_passwo
     ESP_ERROR_CHECK(esp_mesh_set_xon_qsize(128));
     
     ESP_ERROR_CHECK(esp_event_handler_register(MESH_EVENT, ESP_EVENT_ANY_ID, &mesh_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_GOT_IP, &mesh_event_handler, NULL));
+    ESP_ERROR_CHECK(esp_event_handler_register(IP_EVENT, IP_EVENT_STA_LOST_IP, &mesh_event_handler, NULL));
     
     ESP_ERROR_CHECK(esp_mesh_start());
     
@@ -546,7 +546,11 @@ esp_err_t communication_set_mesh_parent(const char *parent_mac)
         parent_addr.addr[i] = (uint8_t)mac[i];
     }
     
-    esp_err_t err = esp_mesh_set_parent(&parent_addr, NULL, MESH_ROOT, 0);
+    wifi_config_t parent_cfg = {0};
+    memcpy(parent_cfg.sta.bssid, parent_addr.addr, 6);
+    parent_cfg.sta.bssid_set = true;
+    
+    esp_err_t err = esp_mesh_set_parent(&parent_cfg, NULL, MESH_ROOT, 0);
     
     if (err == ESP_OK) {
         ESP_LOGI(MESH_TAG, "Parent set to: %s", parent_mac);

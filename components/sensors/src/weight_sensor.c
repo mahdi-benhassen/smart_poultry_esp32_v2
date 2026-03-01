@@ -1,6 +1,6 @@
 #include "sensors/weight_sensor.h"
 #include "sensors/sensor_manager.h"
-#include <driver/adc.h>
+#include <esp_adc/adc_oneshot.h>
 #include <esp_log.h>
 #include <string.h>
 
@@ -23,7 +23,8 @@ static float calibration_factor_2 = 1.0f;
 
 static float read_weight_from_channel(adc_channel_t channel, float tare, float cal_factor)
 {
-    int adc_value = adc1_get_raw(channel);
+    int adc_value = 0;
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, channel, &adc_value));
     float voltage = (float)adc_value / ADC_MAX * ADC_VREF;
     float weight = (voltage * cal_factor) - tare;
     if (weight < 0) weight = 0;
@@ -106,11 +107,12 @@ sensor_data_t* get_weight_sensors(uint8_t *count)
 
 esp_err_t weight_sensor_tare(void)
 {
-    int adc_value = adc1_get_raw(WEIGHT_ADC_CHANNEL_1);
+    int adc_value = 0;
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, WEIGHT_ADC_CHANNEL_1, &adc_value));
     float voltage = (float)adc_value / ADC_MAX * ADC_VREF;
     tare_offset_1 = voltage * calibration_factor_1;
     
-    adc_value = adc1_get_raw(WEIGHT_ADC_CHANNEL_2);
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, WEIGHT_ADC_CHANNEL_2, &adc_value));
     voltage = (float)adc_value / ADC_MAX * ADC_VREF;
     tare_offset_2 = voltage * calibration_factor_2;
     
@@ -120,13 +122,14 @@ esp_err_t weight_sensor_tare(void)
 
 esp_err_t weight_sensor_calibrate(float known_weight)
 {
-    int adc_value = adc1_get_raw(WEIGHT_ADC_CHANNEL_1);
+    int adc_value = 0;
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, WEIGHT_ADC_CHANNEL_1, &adc_value));
     float voltage = (float)adc_value / ADC_MAX * ADC_VREF;
     if (voltage > 0.01f) {
         calibration_factor_1 = known_weight / voltage;
     }
     
-    adc_value = adc1_get_raw(WEIGHT_ADC_CHANNEL_2);
+    ESP_ERROR_CHECK(adc_oneshot_read(adc1_handle, WEIGHT_ADC_CHANNEL_2, &adc_value));
     voltage = (float)adc_value / ADC_MAX * ADC_VREF;
     if (voltage > 0.01f) {
         calibration_factor_2 = known_weight / voltage;
